@@ -2,14 +2,12 @@ import { useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCheckIcon,
-  ListTodoIcon,
   LogOutIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
   ArrowUpRightIcon,
   InboxIcon,
-  LockKeyholeIcon,
 } from 'lucide-react';
 import { taskTitleSchema, type Task, type User } from '@todo/contracts';
 import { api } from '@/lib/api';
@@ -17,18 +15,9 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
 import { Field, FieldGroup, FieldLabel, FieldError } from '@/components/ui/field';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
