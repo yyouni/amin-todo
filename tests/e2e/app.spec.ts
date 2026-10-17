@@ -1,5 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-const password = 'a-long-browser-password-123!';
+import { test, expect } from '@playwright/test';
 test('validates inputs and counts exactly one visit per document load', async ({ page }) => {
   let visits = 0;
   page.on('request', (req) => {
