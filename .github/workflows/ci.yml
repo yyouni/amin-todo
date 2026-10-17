@@ -1,0 +1,72 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-bookworm
+        env:
+          POSTGRES_USER: todo
+          POSTGRES_PASSWORD: test-password
+          POSTGRES_DB: todo_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U todo -d todo_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgres://todo:test-password@127.0.0.1:5432/todo_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: bash -n scripts/*.sh
+      - run: npm audit --omit=dev --audit-level=high
+  docker-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run setup:env
+      - run: docker compose up -d --build --wait --wait-timeout 180
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: node scripts/verify-persistence.mjs
+      - run: node scripts/verify-backup.mjs
+      - name: Start monitoring
+        run: docker compose -f compose.yml -f compose.monitoring.yml up -d --no-build --wait --wait-timeout 180
+      - run: node scripts/verify-monitoring.mjs
+      - name: Health and public metrics isolation
+        run: |
+          curl --fail http://localhost:8080/api/health/ready
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/metrics)" = 404
+      - name: Logs
+        if: failure()
+        run: docker compose -f compose.yml -f compose.monitoring.yml logs --no-color
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+      - run: docker compose -f compose.yml -f compose.monitoring.yml down
+        if: always()

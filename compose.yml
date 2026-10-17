@@ -1,0 +1,71 @@
+name: amin-todo
+
+x-api: &api
+  image: ${IMAGE_PREFIX:-todo}/api:${IMAGE_TAG:-local}
+  build: { context: ., dockerfile: apps/api/Dockerfile }
+  init: true
+  environment: &api-env
+    NODE_ENV: production
+    PORT: 3001
+    DATABASE_URL: postgres://${POSTGRES_USER:-todo}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-todo}
+    SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET}
+    APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
+    COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    TRUST_PROXY: 'true'
+
+services:
+  db:
+    image: postgres:18.6-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-todo}
+      POSTGRES_DB: ${POSTGRES_DB:-todo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes: [postgres-data:/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+    cpus: 1.0
+  migrate:
+    <<: *api
+    command: [node, apps/api/dist/migrate.js]
+    environment:
+      <<: *api-env
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?Set GRAFANA_DB_PASSWORD}
+    depends_on:
+      db: { condition: service_healthy }
+    mem_limit: 256m
+  api:
+    <<: *api
+    restart: unless-stopped
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3001/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    mem_limit: 384m
+    cpus: 1.0
+  web:
+    image: ${IMAGE_PREFIX:-todo}/web:${IMAGE_TAG:-local}
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    restart: unless-stopped
+    ports: ['${WEB_PORT:-8080}:8080']
+    depends_on:
+      api: { condition: service_healthy }
+    mem_limit: 128m
+    cpus: 0.5
+
+volumes:
+  postgres-data:

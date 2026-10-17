@@ -1,0 +1,9 @@
+node_modules
+**/dist
+.agents
+.codex
+.git
+package-lock.json
+test-results
+playwright-report
+backups

@@ -1,0 +1,26 @@
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData: { timeInterval: 15s }
+  - name: Visits
+    uid: visits
+    type: postgres
+    access: proxy
+    url: db:5432
+    user: todo_metrics
+    editable: false
+    jsonData:
+      database: $POSTGRES_DB
+      sslmode: disable
+      postgresVersion: 1800
+      maxOpenConns: 2
+      maxIdleConns: 1
+      timescaledb: false
+    secureJsonData:
+      password: $GRAFANA_DB_PASSWORD

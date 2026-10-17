@@ -1,0 +1,7 @@
+services:
+  migrate:
+    pull_policy: always
+  api:
+    pull_policy: always
+  web:
+    pull_policy: always
